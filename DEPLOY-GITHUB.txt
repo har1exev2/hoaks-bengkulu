@@ -1,0 +1,17 @@
+DEPLOY ONLINE DARI GITHUB
+
+1. Push project ke GitHub.
+2. Pilih hosting yang mendukung Docker, misalnya Railway atau Render.
+3. Pilih repository ini.
+4. Hosting akan membaca Dockerfile.
+5. Pastikan service menyediakan PORT (Docker entrypoint sudah membaca PORT).
+6. Untuk SQLite, buat persistent volume/disk dan mount ke:
+   /data
+7. Set environment variables:
+   DB_FILE=/data/hoaks_bengkulu.sqlite
+   UPLOAD_DIR=/data/uploads
+
+PENTING:
+- GitHub Pages tidak dapat menjalankan PHP.
+- Jangan memakai file SQLite sebagai database aktif di dalam web root.
+- Untuk aplikasi produksi/multi-user yang lebih besar, pertimbangkan migrasi ke MySQL/PostgreSQL.

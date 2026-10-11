@@ -1,245 +1,252 @@
-body {
+```php
+<?php
 
-    background-color: #f5f7fb;
+require_once __DIR__ . "/../config/config.php";
 
-    color: #212529;
+// Pastikan hanya admin yang dapat mengakses halaman ini.
+admin_required();
 
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+// Membuat token CSRF.
+if (empty($_SESSION['csrf_hapus_laporan'])) {
+    $_SESSION['csrf_hapus_laporan'] = bin2hex(random_bytes(32));
 }
 
+// Proses penghapusan laporan.
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_POST['hapus_laporan'])
+) {
+    $token = $_POST['csrf_token'] ?? '';
+    $idLaporan = filter_input(
+        INPUT_POST,
+        'id_laporan',
+        FILTER_VALIDATE_INT
+    );
 
-.hero {
+    if (
+        !is_string($token) ||
+        !hash_equals($_SESSION['csrf_hapus_laporan'], $token)
+    ) {
+        $_SESSION['flash_laporan'] = [
+            'type' => 'danger',
+            'message' => 'Permintaan tidak valid. Silakan coba lagi.'
+        ];
+    } elseif (!$idLaporan || $idLaporan < 1) {
+        $_SESSION['flash_laporan'] = [
+            'type' => 'danger',
+            'message' => 'ID laporan tidak valid.'
+        ];
+    } else {
+        try {
+            // Periksa apakah laporan tersedia.
+            $check = $conn->prepare(
+                "SELECT id_laporan
+                 FROM laporan
+                 WHERE id_laporan = ?"
+            );
 
-    background:
-        linear-gradient(
-            135deg,
-            #0d6efd,
-            #003d99
-        );
+            $check->bind_param("i", $idLaporan);
+            $check->execute();
 
-    color: white;
+            $dataLaporan = $check->get_result();
+$laporanDitemukan = $dataLaporan->fetch_assoc();
 
-    border-radius: 25px;
+if (!$laporanDitemukan) {
+                $_SESSION['flash_laporan'] = [
+                    'type' => 'warning',
+                    'message' => 'Laporan tidak ditemukan.'
+                ];
+            } else {
+                // Hapus laporan.
+                $hapus = $conn->prepare(
+                    "DELETE FROM laporan
+                     WHERE id_laporan = ?"
+                );
 
-    padding: 60px 40px;
+                $hapus->bind_param("i", $idLaporan);
+                $hapus->execute();
 
-    margin-top: 30px;
-}
+                $_SESSION['flash_laporan'] = [
+                    'type' => 'success',
+                    'message' => 'Laporan berhasil dihapus.'
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log(
+                "Gagal menghapus laporan: " . $e->getMessage()
+            );
 
-
-.hero h1 {
-
-    font-weight: 700;
-
-}
-
-
-.card {
-
-    border: none;
-
-    border-radius: 16px;
-
-}
-
-
-.stat-card {
-
-    transition:
-        transform .2s ease,
-        box-shadow .2s ease;
-}
-
-
-.stat-card:hover {
-
-    transform:
-        translateY(-5px);
-
-    box-shadow:
-        0 10px 30px
-        rgba(0,0,0,.1);
-}
-
-
-.btn {
-
-    border-radius: 10px;
-}
-
-
-.form-control,
-.form-select {
-
-    border-radius: 10px;
-
-    padding: 12px;
-}
-
-
-.report-card {
-
-    transition: .2s;
-}
-
-
-.report-card:hover {
-
-    transform:
-        translateY(-3px);
-}
-
-
-.detection-box {
-
-    border-left:
-        5px solid #0d6efd;
-
-    background:
-        #eef5ff;
-
-    padding: 20px;
-
-    border-radius: 10px;
-}
-
-
-.footer {
-
-    margin-top: 100px;
-}
-
-
-.table {
-
-    background: white;
-}
-
-
-.badge {
-
-    padding: 8px 10px;
-}
-
-/* =========================
-   STICKY FOOTER
-========================= */
-
-html,
-body {
-    height: 100%;
-}
-
-body {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-main {
-    flex: 1;
-}
-
-/* Footer */
-footer {
-    width: 100%;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    footer {
-        font-size: 14px;
+            $_SESSION['flash_laporan'] = [
+                'type' => 'danger',
+                'message' => 'Laporan gagal dihapus. Periksa log aplikasi.'
+            ];
+        }
     }
 
-    footer p {
-        margin-bottom: 5px;
-    }
-}
-/* =========================================
-   HALAMAN KELOLA LAPORAN
-   ========================================= */
-
-/* Tampilan tabel */
-.tabel-kelola-laporan {
-    width: 100%;
-    vertical-align: middle;
+    // Kembali ke halaman Kelola Laporan.
+    header("Location: " . BASE_URL . "/admin/laporan.php");
+    exit;
 }
 
-.tabel-kelola-laporan th,
-.tabel-kelola-laporan td {
-    vertical-align: middle;
-    padding: 12px 8px;
-}
+// Mengambil daftar laporan.
+$query = "
+    SELECT
+        l.*,
+        u.nama,
+        k.nama_kategori
+    FROM laporan l
+    LEFT JOIN users u
+        ON l.id_user = u.id_user
+    LEFT JOIN kategori k
+        ON l.id_kategori = k.id_kategori
+    ORDER BY l.created_at DESC
+";
 
-.tabel-kelola-laporan th {
-    font-weight: 600;
-    white-space: nowrap;
-}
+$result = $conn->query($query);
 
-/* Kolom aksi */
-.tabel-kelola-laporan .kolom-aksi {
-    min-width: 175px;
-    white-space: nowrap;
-}
+$pageTitle = "Kelola Laporan";
 
-/* Susunan tombol */
-.tombol-aksi {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-}
+require_once __DIR__ . "/../includes/header.php";
+?>
 
-/* Samakan ukuran tombol Periksa dan Hapus */
-.tombol-aksi .btn-aksi {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+<div class="container py-5 halaman-kelola-laporan">
 
-    width: 76px;
-    min-width: 76px;
-    height: 32px;
+    <h2>Kelola Laporan</h2>
 
-    margin: 0;
-    padding: 0 8px;
+    <?php if (!empty($_SESSION['flash_laporan'])): ?>
+        <div class="alert alert-<?= clean(
+            $_SESSION['flash_laporan']['type']
+        ) ?> alert-dismissible fade show mt-3"
+             role="alert">
 
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
+            <?= clean($_SESSION['flash_laporan']['message']) ?>
 
-    border-radius: 5px;
-    white-space: nowrap;
-    box-sizing: border-box;
-}
+            <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert"
+                aria-label="Tutup">
+            </button>
+        </div>
 
-/* Hilangkan margin bawaan pada form */
-.form-hapus-laporan {
-    display: inline-flex;
-    margin: 0;
-    padding: 0;
-}
+        <?php unset($_SESSION['flash_laporan']); ?>
+    <?php endif; ?>
 
-/* Pastikan kedua tombol tidak membesar saat hover */
-.tombol-aksi .btn-aksi:hover {
-    transform: none;
-}
+    <div class="card shadow p-3 mt-4">
 
-/* Tampilan layar kecil */
-@media (max-width: 768px) {
-    .tabel-kelola-laporan {
-        min-width: 700px;
-    }
+        <div class="table-responsive">
+            <table class="table align-middle tabel-kelola-laporan">
 
-    .tabel-kelola-laporan th,
-    .tabel-kelola-laporan td {
-        padding: 10px 8px;
-    }
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Pelapor</th>
+                        <th>Judul</th>
+                        <th>Deteksi</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
 
-    .tombol-aksi {
-        gap: 6px;
-    }
-}
+                <tbody>
+
+                <?php
+                $adaLaporan = false;
+
+                while ($row = $result->fetch_assoc()):
+                    if (!$row) {
+                        break;
+                    }
+
+                    $adaLaporan = true;
+                ?>
+
+                    <tr>
+                        <td>
+                            #<?= (int) $row['id_laporan'] ?>
+                        </td>
+
+                        <td>
+                            <?= clean($row['nama'] ?? '-') ?>
+                        </td>
+
+                        <td>
+                            <?= clean($row['judul'] ?? '-') ?>
+                        </td>
+
+                        <td>
+                            <?= clean($row['hasil_deteksi'] ?? '-') ?>
+                            <br>
+                            <small class="text-muted">
+                                <?= (int) ($row['nilai_deteksi'] ?? 0) ?>%
+                            </small>
+                        </td>
+
+                        <td>
+                            <?= statusBadge($row['status'] ?? '') ?>
+                        </td>
+
+                        <td class="kolom-aksi">
+
+                            <div class="tombol-aksi">
+
+                                <!-- Tombol Periksa -->
+                                <a
+                                    href="<?= BASE_URL ?>/admin/verifikasi.php?id=<?= (int) $row['id_laporan'] ?>"
+                                    class="btn btn-primary btn-sm btn-aksi">
+                                    Periksa
+                                </a>
+
+                                <!-- Form Hapus -->
+                                <form
+                                    method="POST"
+                                    class="form-hapus-laporan"
+                                    onsubmit="return confirm('Yakin ingin menghapus laporan ini? Penghapusan tidak dapat dibatalkan.');">
+
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?= clean(
+                                            $_SESSION['csrf_hapus_laporan']
+                                        ) ?>">
+
+                                    <input
+                                        type="hidden"
+                                        name="id_laporan"
+                                        value="<?= (int) $row['id_laporan'] ?>">
+
+                                    <button
+                                        type="submit"
+                                        name="hapus_laporan"
+                                        value="1"
+                                        class="btn btn-danger btn-sm btn-aksi">
+                                        Hapus
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+                    </tr>
+
+                <?php endwhile; ?>
+
+                <?php if (!$adaLaporan): ?>
+                    <tr>
+                        <td colspan="6"
+                            class="text-center text-muted py-4">
+                            Belum ada laporan.
+                        </td>
+                    </tr>
+                <?php endif; ?>
+
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<?php require_once __DIR__ . "/../includes/footer.php"; ?>
+```

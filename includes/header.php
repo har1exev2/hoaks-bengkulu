@@ -25,7 +25,7 @@ require_once dirname(__DIR__) . '/config/config.php';
             class="navbar-brand fw-bold"
             href="<?= BASE_URL ?>/index.php"
         >
-            DETEKSI INFORMASI HOAKS KOTA BENGKULU
+            DETEKSI INFORMASI HOAKS
         </a>
 
 

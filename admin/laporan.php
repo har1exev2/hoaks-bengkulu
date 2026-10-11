@@ -5,16 +5,15 @@ require_once __DIR__ . "/../config/config.php";
 // Pastikan hanya admin yang dapat mengakses halaman ini.
 admin_required();
 
-// Membuat token CSRF.
+// Membuat token CSRF untuk melindungi aksi hapus.
 if (empty($_SESSION['csrf_hapus_laporan'])) {
     $_SESSION['csrf_hapus_laporan'] = bin2hex(random_bytes(32));
 }
 
 // Proses penghapusan laporan.
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['hapus_laporan'])
-) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['hapus_laporan'])) {
+
     $token = $_POST['csrf_token'] ?? '';
     $idLaporan = filter_input(
         INPUT_POST,
@@ -48,9 +47,8 @@ if (
             $check->execute();
 
             $dataLaporan = $check->get_result();
-$laporanDitemukan = $dataLaporan->fetch_assoc();
 
-if (!$laporanDitemukan) {
+            if ($dataLaporan->num_rows === 0) {
                 $_SESSION['flash_laporan'] = [
                     'type' => 'warning',
                     'message' => 'Laporan tidak ditemukan.'
@@ -77,7 +75,7 @@ if (!$laporanDitemukan) {
 
             $_SESSION['flash_laporan'] = [
                 'type' => 'danger',
-                'message' => 'Laporan gagal dihapus. Periksa log aplikasi.'
+                'message' => 'Laporan gagal dihapus. Silakan periksa log aplikasi.'
             ];
         }
     }
@@ -87,7 +85,7 @@ if (!$laporanDitemukan) {
     exit;
 }
 
-// Mengambil daftar laporan.
+// Ambil daftar laporan dan nama pelapor.
 $query = "
     SELECT
         l.*,
@@ -108,7 +106,7 @@ $pageTitle = "Kelola Laporan";
 require_once __DIR__ . "/../includes/header.php";
 ?>
 
-<div class="container py-5 halaman-kelola-laporan">
+<div class="container py-5">
 
     <h2>Kelola Laporan</h2>
 
@@ -134,7 +132,7 @@ require_once __DIR__ . "/../includes/header.php";
     <div class="card shadow p-3 mt-4">
 
         <div class="table-responsive">
-            <table class="table align-middle tabel-kelola-laporan">
+            <table class="table align-middle">
 
                 <thead>
                     <tr>
@@ -185,29 +183,24 @@ require_once __DIR__ . "/../includes/header.php";
                             <?= statusBadge($row['status'] ?? '') ?>
                         </td>
 
-                        <td class="kolom-aksi">
+                        <td>
+                            <div class="d-flex flex-wrap gap-2">
 
-                            <div class="tombol-aksi">
-
-                                <!-- Tombol Periksa -->
                                 <a
                                     href="<?= BASE_URL ?>/admin/verifikasi.php?id=<?= (int) $row['id_laporan'] ?>"
-                                    class="btn btn-primary btn-sm btn-aksi">
+                                    class="btn btn-sm btn-primary">
                                     Periksa
                                 </a>
 
-                                <!-- Form Hapus -->
                                 <form
                                     method="POST"
-                                    class="form-hapus-laporan"
+                                    class="d-inline"
                                     onsubmit="return confirm('Yakin ingin menghapus laporan ini? Penghapusan tidak dapat dibatalkan.');">
 
                                     <input
                                         type="hidden"
                                         name="csrf_token"
-                                        value="<?= clean(
-                                            $_SESSION['csrf_hapus_laporan']
-                                        ) ?>">
+                                        value="<?= clean($_SESSION['csrf_hapus_laporan']) ?>">
 
                                     <input
                                         type="hidden"
@@ -218,14 +211,13 @@ require_once __DIR__ . "/../includes/header.php";
                                         type="submit"
                                         name="hapus_laporan"
                                         value="1"
-                                        class="btn btn-danger btn-sm btn-aksi">
+                                        class="btn btn-sm btn-danger">
                                         Hapus
                                     </button>
 
                                 </form>
 
                             </div>
-
                         </td>
                     </tr>
 
